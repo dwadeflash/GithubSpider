@@ -9,10 +9,8 @@ from bs4 import BeautifulSoup
 import mysql.connector
 import time
 
-if __name__ == '__main__':
-    user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-    headers = { 'User-Agent' : user_agent }
-    request = urllib.request.Request("https://github.com/" + "Vedenin" + "/", headers = headers)
+def getMainInfo(userHome, headers):
+    request = urllib.request.Request(userHome, headers = headers)
     source_code = urllib.request.urlopen(request).read()
     plain_text = source_code.decode("utf-8")
     soup = BeautifulSoup(plain_text, "html.parser")
@@ -33,6 +31,30 @@ if __name__ == '__main__':
         'starred' : starred,
         'following' : following
     }
+    return user
+
+def getStarsAndForks(repositories, headers, user):
+    request = urllib.request.Request(repositories, headers = headers)
+    source_code = urllib.request.urlopen(request).read()
+    plain_text = source_code.decode("utf-8")
+    soup = BeautifulSoup(plain_text, "html.parser")
+    repoList = soup.find_all('div', {'class':'repo-list-item public source'})
+    stars = 0
+    forks = 0
+    for repo in repoList:
+        aTag = repo.find_all('a')
+        for e in aTag:
+            print(e.get_text())
+    user['stars'] = stars
+    user['forks'] = forks
+
+if __name__ == '__main__':
+    user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+    headers = { 'User-Agent' : user_agent }
+    userHome = "https://github.com/Vedenin"
+    repositories = userHome + "?tab=repositories"
+    user = getMainInfo(userHome, headers)
+    getStarsAndForks(repositories, headers, user)
     config = {
         'user': 'root',
         'password': 'root',
