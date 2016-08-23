@@ -121,6 +121,10 @@ def startSpider():
     r = redis.StrictRedis(**redisConfig)
     name = r.lpop("githubspider-toScanUsers").decode()
     while name != None:
+        if r.sismember("githubspider-scannedUsers", name):
+            print("已经爬取过该用户：%s"%name)
+            name = r.lpop("githubspider-toScanUsers").decode()
+            continue
         print(name)
         userHome = "https://github.com/" + name
         repositories = userHome + "?tab=repositories"
