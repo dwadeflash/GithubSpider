@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 import mysql.connector
 import time
 import redis
+import threading
 
 def getMainInfo(userHome, headers):
     request = urllib.request.Request(userHome, headers = headers)
@@ -17,10 +18,26 @@ def getMainInfo(userHome, headers):
     soup = BeautifulSoup(plain_text, "html.parser")
     full_name = soup.find('div', {'class':'vcard-fullname'}).get_text()
     user_name = soup.find('div', {'class':'vcard-username'}).get_text()
+    organizationTag = soup.find('li', {'aria-label':'Organization'})
+    organization = ""
+    if organizationTag:
+        organization = organizationTag.get_text()
     locationTag = soup.find('li', {'aria-label':'Home location'})
     location = ""
     if locationTag:
         location = locationTag.get_text()
+    bioTag = soup.find('div', {'class':'user-profile-bio'})
+    bio = ""
+    if bioTag:
+        bio = bioTag.get_text()
+    emailTag = soup.find('li', {'aria-label':'Email'})
+    email = ""
+    if emailTag:
+        email = emailTag.get_text()
+    urlTag = soup.find('li', {'aria-label':'Blog or website'})
+    url = ""
+    if urlTag:
+        url = urlTag.get_text()
     join_time = soup.find('local-time', {'class':'join-date'})['datetime']
     info = soup.find_all('strong', {'class':'vcard-stat-count d-block'})
     followers = info[0].get_text()
@@ -29,6 +46,10 @@ def getMainInfo(userHome, headers):
     user = {
         'name' : user_name,
         'full_name' : full_name,
+        'email' : email,
+        'bio' : bio,
+        'url' : url,
+        'company' : organization,
         'location' : location,
         'join_time' : time.strptime(join_time, '%Y-%m-%dT%H:%M:%SZ'),
         'followers' : followers,
@@ -72,8 +93,8 @@ def saveUser(user):
         'host': '127.0.0.1',
         'database': 'github-spider'
     }
-    add_user = ("INSERT INTO user (name, full_name, location, join_time, followers, starred, following, stars, forks) VALUES "
-                "(%(name)s, %(full_name)s, %(location)s, %(join_time)s, %(followers)s, %(starred)s, %(following)s, %(stars)s, %(forks)s)")
+    add_user = ("INSERT INTO user (name, full_name, email, bio, url, company, location, join_time, followers, starred, following, stars, forks) VALUES "
+                "(%(name)s, %(full_name)s, %(email)s, %(bio)s, %(url)s, %(company)s, %(location)s, %(join_time)s, %(followers)s, %(starred)s, %(following)s, %(stars)s, %(forks)s)")
     cnx = cur = None
     try:
         cnx = mysql.connector.connect(**config)
@@ -98,7 +119,6 @@ def startSpider():
         'password':123
     }
     r = redis.StrictRedis(**redisConfig)
-    r.lpush("githubspider-toScanUsers", "sanitar4eg")
     name = r.lpop("githubspider-toScanUsers").decode()
     while name != None:
         print(name)
@@ -119,4 +139,8 @@ def startSpider():
         name = r.lpop("githubspider-toScanUsers").decode()
 
 if __name__ == '__main__':
-    startSpider()
+    threads = []
+    for i in range(0,10):
+        threads.append(threading.Thread(target=startSpider))
+    for t in threads:
+        t.start()
